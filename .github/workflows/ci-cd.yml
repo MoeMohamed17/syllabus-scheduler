@@ -48,7 +48,7 @@ jobs:
           pip install pytest
           pytest
         env:
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         continue-on-error: true # Remove this once you add tests
 
   # Job 2: Deploy to Render
