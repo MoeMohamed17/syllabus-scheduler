@@ -3,7 +3,6 @@ import json
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from pdf_extract import extract_text
 from ai_extractor import extract_deadlines_with_ai
 from calendar_generator import generate_calendar
 
@@ -64,14 +63,8 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # Extract text from PDF
-        text = extract_text(filepath)
-        
-        if not text:
-            return jsonify({'error': 'Could not extract text from PDF'}), 400
-        
-        # Extract deadlines using AI
-        deadlines = extract_deadlines_with_ai(text, filename)
+        # Extract deadlines using AI with vision (pass PDF directly)
+        deadlines = extract_deadlines_with_ai(filepath, filename)
         
         # Save the deadlines to JSON
         output_filename = f"{os.path.splitext(filename)[0]}_deadlines.json"
@@ -79,6 +72,27 @@ def upload_file():
         
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(deadlines, f, indent=2, ensure_ascii=False)
+        
+        # Update the combined all_deadlines.json file
+        combined_json_path = os.path.join(OUTPUT_FOLDER, "all_deadlines.json")
+        all_deadlines = []
+        
+        # Load existing deadlines if file exists
+        if os.path.exists(combined_json_path):
+            with open(combined_json_path, 'r', encoding='utf-8') as f:
+                all_deadlines = json.load(f)
+        
+        # Add new deadlines (avoid duplicates based on source_file)
+        existing_sources = [d.get('source_file') for d in all_deadlines]
+        if deadlines.get('source_file') not in existing_sources:
+            all_deadlines.append(deadlines)
+        else:
+            # Update existing entry
+            all_deadlines = [d if d.get('source_file') != deadlines.get('source_file') else deadlines for d in all_deadlines]
+        
+        # Save updated combined file
+        with open(combined_json_path, 'w', encoding='utf-8') as f:
+            json.dump(all_deadlines, f, indent=2, ensure_ascii=False)
         
         # Clean up the uploaded file
         os.remove(filepath)
@@ -123,20 +137,8 @@ def process_multiple():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             
-            # Extract text from PDF
-            text = extract_text(filepath)
-            
-            if not text:
-                results.append({
-                    'filename': filename,
-                    'success': False,
-                    'error': 'Could not extract text from PDF'
-                })
-                os.remove(filepath)
-                continue
-            
-            # Extract deadlines using AI
-            deadlines = extract_deadlines_with_ai(text, filename)
+            # Extract deadlines using AI with vision (pass PDF directly)
+            deadlines = extract_deadlines_with_ai(filepath, filename)
             
             # Save individual JSON file
             output_filename = f"{os.path.splitext(filename)[0]}_deadlines.json"
