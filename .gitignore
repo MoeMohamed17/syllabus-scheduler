@@ -2,3 +2,12 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Environment variables
+.env
+
+# Output files
+extracted_deadlines/
+
+# macOS system files
+.DS_Store
