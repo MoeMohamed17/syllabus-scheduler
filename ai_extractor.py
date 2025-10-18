@@ -49,7 +49,7 @@ Return ONLY a valid JSON object in this exact format:
     ]
 }
 
-If dates are relative (e.g., "Week 3"), include them as-is. Extract as much information as possible."""
+If dates are relative (e.g., "Week 3"), include them as-is. Extract as much information as possible. Make sure to look through the entire text before creating the json."""
 
     try:
         response = client.chat.completions.create(

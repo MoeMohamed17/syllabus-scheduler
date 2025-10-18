@@ -2,6 +2,7 @@ import os
 import json
 from pdf_extract import extract_text
 from ai_extractor import extract_deadlines_with_ai
+from calendar_generator import generate_calendar
 
 def main():
     pdf_folder = "syllabi_pdfs"
@@ -55,6 +56,10 @@ def main():
         
         print(f"✓ Complete! Processed {len(all_deadlines)} syllabus file(s).")
         print(f"   Results saved to: {output_folder}/")
+        
+        # Generate ICS calendar file
+        print("\nGenerating calendar file...")
+        generate_calendar(json_file=combined_output_path, output_file="schedule.ics")
 
 if __name__ == "__main__":
     main()

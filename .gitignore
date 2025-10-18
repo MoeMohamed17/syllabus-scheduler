@@ -8,6 +8,7 @@ __pycache__/
 
 # Output files
 extracted_deadlines/
+schedule.ics
 
 # macOS system files
 .DS_Store
