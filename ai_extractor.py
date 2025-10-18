@@ -6,6 +6,14 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+def create_file(file_path):
+  with open(file_path, "rb") as file_content:
+    result = client.files.create(
+        file=file_content,
+        purpose="vision",
+    )
+    return result.id
+
 def extract_deadlines_with_ai(text: str, filename: str) -> dict:
     """
     Uses OpenAI API to extract assignment and exam deadlines from syllabus text.
@@ -18,6 +26,10 @@ def extract_deadlines_with_ai(text: str, filename: str) -> dict:
         dict: JSON object containing extracted deadlines
     """
     api_key = os.getenv("OPENAI_API_KEY")
+
+    file_id = create_file("path_to_your_image.jpg")
+
+
     
     if not api_key:
         raise ValueError("OPENAI_API_KEY not found in environment variables")

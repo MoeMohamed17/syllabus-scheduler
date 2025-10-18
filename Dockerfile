@@ -11,5 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY . .
 
-# Run the app
-CMD ["python", "main.py"]
+# Expose port for Flask app
+EXPOSE 5000
+
+# Run the Flask app with Gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
