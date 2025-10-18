@@ -22,7 +22,9 @@ def extract_deadlines_with_ai(text: str, filename: str) -> dict:
     if not api_key:
         raise ValueError("OPENAI_API_KEY not found in environment variables")
     
-    client = OpenAI(api_key=api_key)
+    # client = OpenAI(api_key=api_key) 
+    os.environ["OPENAI_API_KEY"] = api_key
+    client = OpenAI()
     
     system_prompt = """You are a syllabus analyzer. Extract all assignment deadlines and exam deadlines from the provided syllabus text.
 
