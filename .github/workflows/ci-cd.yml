@@ -1,0 +1,67 @@
+# .github/workflows/ci-cd.yml
+
+name: CI/CD Pipeline
+
+# Trigger the workflow on push or pull request
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+# Environment variables
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # Job 1: Test and Build
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      # Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Run linting (optional - uncomment if you add flake8 or pylint)
+      # - name: Lint with flake8
+      #   run: |
+      #     pip install flake8
+      #     flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      # Run tests (if you have tests)
+      - name: Run tests
+        run: |
+          pip install pytest
+          pytest
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+        continue-on-error: true # Remove this once you add tests
+
+  # Job 2: Deploy to Render
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    # Only deploy on push to main branch
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Render
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+      - name: Deployment notification
+        run: echo "Deployment triggered on Render! 🚀"
