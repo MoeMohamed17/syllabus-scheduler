@@ -6,12 +6,31 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-def extract_deadlines_with_ai(text: str, filename: str) -> dict:
+def upload_pdf_to_openai(client: OpenAI, pdf_path: str) -> str:
     """
-    Uses OpenAI API to extract assignment and exam deadlines from syllabus text.
+    Upload a PDF to OpenAI Files API.
     
     Args:
-        text (str): The extracted text from the PDF
+        client (OpenAI): OpenAI client instance
+        pdf_path (str): Path to the PDF file
+        
+    Returns:
+        str: File ID from OpenAI
+    """
+    with open(pdf_path, "rb") as pdf_file:
+        result = client.files.create(
+            file=pdf_file,
+            purpose="user_data"
+        )
+        return result.id
+
+def extract_deadlines_with_ai(pdf_path: str, filename: str) -> dict:
+    """
+    Uses OpenAI API to extract assignment and exam deadlines from syllabus PDF.
+    OpenAI automatically extracts both text and images from the PDF.
+    
+    Args:
+        pdf_path (str): Path to the PDF file
         filename (str): The name of the PDF file being processed
     
     Returns:
@@ -22,11 +41,10 @@ def extract_deadlines_with_ai(text: str, filename: str) -> dict:
     if not api_key:
         raise ValueError("OPENAI_API_KEY not found in environment variables")
     
-    # client = OpenAI(api_key=api_key) 
     os.environ["OPENAI_API_KEY"] = api_key
     client = OpenAI()
     
-    system_prompt = """You are a syllabus analyzer. Extract all assignment deadlines and exam deadlines from the provided syllabus text.
+    system_prompt = """You are a syllabus analyzer. Extract all assignment deadlines and exam deadlines from the provided syllabus PDF.
 
 Return ONLY a valid JSON object in this exact format:
 {
@@ -49,21 +67,52 @@ Return ONLY a valid JSON object in this exact format:
     ]
 }
 
-If dates are relative (e.g., "Week 3"), include them as-is. Extract as much information as possible. Make sure to look through the entire text before creating the json."""
+CRITICAL: When reading dates from calendar/schedule tables:
+- Pay close attention to which column or row the date appears in
+- Match the assignment/exam name with the correct date column
+- If an item is in the Nov 24 column, the date is Nov 24, NOT Nov 28
+- Double-check table layouts carefully to avoid date mismatches
+
+If dates are relative (e.g., "Week 3"), include them as-is. Extract as much information as possible. Analyze all pages carefully including any tables, schedules, or diagrams."""
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini", 
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Extract deadlines from this syllabus:\n\n{text}"}
-            ],
-            temperature=0.1,  
-            response_format={"type": "json_object"}  # Ensures JSON output
+        # Upload PDF to OpenAI
+        file_id = upload_pdf_to_openai(client, pdf_path)
+        
+        # Build input array with PDF and prompt for GPT-5
+        input_content = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_file",
+                        "file_id": file_id
+                    },
+                    {
+                        "type": "input_text",
+                        "text": f"{system_prompt}\n\nExtract all assignment and exam deadlines from this syllabus PDF. Analyze all pages carefully including any tables, schedules, or diagrams."
+                    }
+                ]
+            }
+        ]
+        
+        # Call OpenAI API with PDF (using gpt-5 for best vision accuracy)
+        response = client.responses.create(
+            model="gpt-5",
+            input=input_content,
+            reasoning={"effort": "high"},  # Use high reasoning for better table understanding
+            text={"verbosity": "medium"}
         )
         
-        result = json.loads(response.choices[0].message.content)
+        result = json.loads(response.output_text)
         result["source_file"] = filename
+        
+        # Cleanup: delete uploaded file from OpenAI
+        try:
+            client.files.delete(file_id)
+        except:
+            pass
+        
         return result
         
     except Exception as e:
@@ -73,4 +122,3 @@ If dates are relative (e.g., "Week 3"), include them as-is. Extract as much info
             "assignments": [],
             "exams": []
         }
-

@@ -1,32 +1,39 @@
 import json
 from ics import Calendar, Event
-from datetime import datetime
+from datetime import datetime, date
 import os
 
-def parse_date(date_string: str) -> datetime:
+def parse_date(date_string: str):
     """
-    Parse various date formats into datetime object.
+    Parse various date formats into date or datetime object.
     
     Args:
         date_string: Date string in various formats
         
     Returns:
-        datetime object or None if parsing fails
+        date or datetime object, or None if parsing fails
     """
     if not date_string or date_string.lower() == "not specified":
         return None
     
-    # Try different date formats
-    formats = [
-        "%Y-%m-%d %H:%M:%S",  # 2025-09-28 23:59:59
+    # Try datetime with time first
+    if " " in date_string:
+        try:
+            return datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass
+    
+    # Try date-only formats (return date object to avoid timezone issues)
+    date_formats = [
         "%Y-%m-%d",            # 2025-09-28
         "%m/%d/%Y",            # 09/28/2025
         "%d/%m/%Y",            # 28/09/2025
     ]
     
-    for fmt in formats:
+    for fmt in date_formats:
         try:
-            return datetime.strptime(date_string, fmt)
+            parsed = datetime.strptime(date_string, fmt)
+            return parsed.date()  # Return date object instead of datetime
         except ValueError:
             continue
     
@@ -68,8 +75,8 @@ def generate_calendar(json_file: str = "extracted_deadlines/all_deadlines.json",
                 event = Event()
                 event.name = f"[{course_code}] {assignment['name']}"
                 event.begin = due_date
+                event.make_all_day()  # Properly set as all-day event
                 event.description = f"{course_name}\n\nAssignment: {assignment.get('description', assignment['name'])}"
-                event.duration = {"hours": 0}  # All-day event
                 calendar.events.add(event)
                 event_count += 1
             else:
@@ -84,8 +91,8 @@ def generate_calendar(json_file: str = "extracted_deadlines/all_deadlines.json",
                 event = Event()
                 event.name = f"[{course_code}] {exam['name']}"
                 event.begin = exam_date
+                event.make_all_day()  # Make exams all-day events to avoid timezone issues
                 event.description = f"{course_name}\n\nExam: {exam.get('description', exam['name'])}"
-                event.duration = {"hours": 2}  # 2-hour exam by default
                 calendar.events.add(event)
                 event_count += 1
             else:
